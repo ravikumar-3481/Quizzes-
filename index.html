@@ -1,0 +1,370 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Quiz Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        /* Custom scrollbar for options */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 shadow-sm flex items-center justify-between sticky top-0 z-10">
+        <div class="flex items-center gap-3">
+            <div class="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <i data-lucide="brain-circuit"></i>
+            </div>
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                NeuralQuiz AI
+            </h1>
+        </div>
+        <div id="stats-badge" class="hidden flex items-center gap-2 bg-slate-100 px-4 py-1.5 rounded-full text-sm font-medium text-slate-600">
+            <i data-lucide="target" class="w-4 h-4"></i>
+            Score: <span id="score-display" class="text-blue-600 font-bold">0</span> / <span id="total-display">0</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 w-full max-w-3xl mx-auto p-6 flex flex-col justify-center">
+        
+        <!-- View 1: Upload Section -->
+        <section id="upload-view" class="glass-panel rounded-2xl shadow-xl p-8 text-center transition-all duration-500">
+            <div class="mb-6 inline-flex p-4 rounded-full bg-blue-50 text-blue-500">
+                <i data-lucide="cloud-upload" class="w-12 h-12"></i>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Upload Question Banks</h2>
+            <p class="text-slate-500 mb-8 max-w-md mx-auto">
+                Upload your .txt files containing MCQs. Our Deep Learning model will parse them and automatically remove semantic duplicates.
+            </p>
+
+            <form id="upload-form" class="space-y-6">
+                <div class="relative border-2 border-dashed border-slate-300 rounded-xl p-8 hover:bg-slate-50 hover:border-blue-400 transition-colors group cursor-pointer" onclick="document.getElementById('file-input').click()">
+                    <input type="file" id="file-input" multiple accept=".txt,.md,.csv" class="hidden" onchange="updateFileList(this)">
+                    <div class="flex flex-col items-center gap-2">
+                        <i data-lucide="file-text" class="w-8 h-8 text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                        <span class="font-medium text-slate-600 group-hover:text-blue-600">Click to browse or drag files here</span>
+                        <span class="text-xs text-slate-400">Supports standard text files</span>
+                    </div>
+                </div>
+
+                <div id="file-list" class="text-sm text-left text-slate-600 space-y-2 hidden max-h-32 overflow-y-auto bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <!-- Files will be listed here -->
+                </div>
+
+                <button type="button" onclick="submitFiles()" id="upload-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="play" class="w-5 h-5"></i>
+                    Process & Start Quiz
+                </button>
+            </form>
+            
+            <div id="loading-state" class="hidden flex-col items-center justify-center mt-6 text-slate-500">
+                <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-blue-500 mb-2"></i>
+                <span class="text-sm">Processing with Deep Learning NLP...</span>
+            </div>
+            <div id="error-message" class="hidden mt-4 text-rose-500 text-sm font-medium bg-rose-50 p-3 rounded-lg border border-rose-200"></div>
+        </section>
+
+        <!-- View 2: Quiz Section -->
+        <section id="quiz-view" class="hidden flex-col h-full justify-center">
+            
+            <div class="glass-panel rounded-2xl shadow-xl overflow-hidden flex flex-col">
+                <!-- Progress bar -->
+                <div class="w-full bg-slate-100 h-1.5">
+                    <div id="progress-bar" class="bg-blue-600 h-1.5 transition-all duration-300" style="width: 0%"></div>
+                </div>
+                
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <span class="text-xs font-bold tracking-wider uppercase text-slate-400" id="question-counter">Question 1 of 10</span>
+                        <span class="text-xs font-medium px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-md">ML Deduplicated</span>
+                    </div>
+
+                    <h3 id="question-text" class="text-xl font-semibold text-slate-800 mb-8 leading-relaxed">
+                        <!-- Question goes here -->
+                    </h3>
+
+                    <div id="options-container" class="space-y-3">
+                        <!-- Options injected via JS -->
+                    </div>
+
+                    <div class="mt-8 flex justify-end">
+                        <button id="next-btn" onclick="nextQuestion()" class="hidden bg-slate-800 hover:bg-slate-900 text-white font-medium py-2.5 px-6 rounded-lg shadow-sm transition-all flex items-center gap-2">
+                            Next Question <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- View 3: Results Section -->
+        <section id="results-view" class="hidden glass-panel rounded-2xl shadow-xl p-10 text-center">
+            <div class="inline-flex p-5 rounded-full bg-emerald-50 text-emerald-500 mb-6">
+                <i data-lucide="award" class="w-16 h-16"></i>
+            </div>
+            <h2 class="text-3xl font-bold mb-2 text-slate-800">Quiz Completed!</h2>
+            <p class="text-slate-500 mb-8">Here is how you performed.</p>
+            
+            <div class="grid grid-cols-2 gap-4 max-w-sm mx-auto mb-10">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div class="text-slate-400 text-sm mb-1">Final Score</div>
+                    <div class="text-3xl font-bold text-blue-600" id="final-score">0</div>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div class="text-slate-400 text-sm mb-1">Accuracy</div>
+                    <div class="text-3xl font-bold text-emerald-600" id="final-accuracy">0%</div>
+                </div>
+            </div>
+
+            <button onclick="resetApp()" class="bg-slate-800 hover:bg-slate-900 text-white font-medium py-3 px-8 rounded-xl shadow-md transition-all inline-flex items-center gap-2">
+                <i data-lucide="rotate-ccw" class="w-5 h-5"></i> Start New Session
+            </button>
+        </section>
+
+    </main>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Application State
+        const API_BASE_URL = "http://localhost:8000";
+        let state = {
+            questions: [],
+            currentIndex: 0,
+            score: 0,
+            hasAnsweredCurrent: false
+        };
+
+        // --- File Upload Logic ---
+        function updateFileList(input) {
+            const list = document.getElementById('file-list');
+            list.innerHTML = '';
+            
+            if (input.files.length > 0) {
+                list.classList.remove('hidden');
+                Array.from(input.files).forEach(file => {
+                    list.innerHTML += `<div class="flex items-center gap-2"><i data-lucide="file" class="w-4 h-4"></i> ${file.name}</div>`;
+                });
+                lucide.createIcons();
+            } else {
+                list.classList.add('hidden');
+            }
+        }
+
+        async function submitFiles() {
+            const fileInput = document.getElementById('file-input');
+            const errorDiv = document.getElementById('error-message');
+            const btn = document.getElementById('upload-btn');
+            const loader = document.getElementById('loading-state');
+
+            if (fileInput.files.length === 0) {
+                showError("Please select at least one file.");
+                return;
+            }
+
+            errorDiv.classList.add('hidden');
+            btn.disabled = true;
+            btn.classList.add('hidden');
+            loader.classList.remove('hidden');
+            loader.classList.add('flex');
+
+            const formData = new FormData();
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append("files", fileInput.files[i]);
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || "Failed to process files");
+                }
+
+                const data = await response.json();
+                
+                if (data.questions.length === 0) {
+                    throw new Error("No questions found in files.");
+                }
+
+                // Setup Quiz
+                state.questions = data.questions;
+                state.currentIndex = 0;
+                state.score = 0;
+                
+                // Transition UI
+                document.getElementById('upload-view').classList.add('hidden');
+                document.getElementById('stats-badge').classList.remove('hidden');
+                document.getElementById('stats-badge').classList.add('flex');
+                document.getElementById('total-display').innerText = state.questions.length;
+                document.getElementById('quiz-view').classList.remove('hidden');
+                document.getElementById('quiz-view').classList.add('flex');
+                
+                renderQuestion();
+
+            } catch (err) {
+                showError(err.message || "Cannot connect to Backend API. Ensure the Python server is running on port 8000.");
+                btn.disabled = false;
+                btn.classList.remove('hidden');
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+            }
+        }
+
+        function showError(msg) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.innerText = msg;
+            errorDiv.classList.remove('hidden');
+        }
+
+        // --- Quiz Logic ---
+        function renderQuestion() {
+            state.hasAnsweredCurrent = false;
+            document.getElementById('next-btn').classList.add('hidden');
+            
+            const q = state.questions[state.currentIndex];
+            
+            // Update Headers
+            document.getElementById('question-counter').innerText = `Question ${state.currentIndex + 1} of ${state.questions.length}`;
+            document.getElementById('question-text').innerText = q.question;
+            
+            // Update Progress
+            const progress = ((state.currentIndex) / state.questions.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+
+            // Render Options
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            
+            Object.entries(q.options).forEach(([letter, text]) => {
+                const optDiv = document.createElement('div');
+                optDiv.className = "option-btn group flex items-center p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all";
+                optDiv.onclick = () => selectOption(letter, optDiv);
+                
+                optDiv.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center mr-4 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors letter-badge">
+                        ${letter}
+                    </div>
+                    <span class="font-medium text-slate-700">${text}</span>
+                    <div class="ml-auto w-6 h-6 icon-container hidden"></div>
+                `;
+                container.appendChild(optDiv);
+            });
+        }
+
+        function selectOption(selectedLetter, element) {
+            if (state.hasAnsweredCurrent) return;
+            state.hasAnsweredCurrent = true;
+            
+            const currentQ = state.questions[state.currentIndex];
+            const isCorrect = selectedLetter === currentQ.answer;
+            
+            // Update Score
+            if (isCorrect) {
+                state.score++;
+                document.getElementById('score-display').innerText = state.score;
+            }
+
+            // Visual Feedback
+            const optionsNodes = document.getElementById('options-container').childNodes;
+            let i = 0;
+            Object.keys(currentQ.options).forEach(letter => {
+                const node = optionsNodes[i];
+                const badge = node.querySelector('.letter-badge');
+                const iconContainer = node.querySelector('.icon-container');
+                iconContainer.classList.remove('hidden');
+
+                // Disable hovers
+                node.classList.remove('hover:border-blue-400', 'hover:bg-blue-50', 'cursor-pointer');
+                
+                if (letter === currentQ.answer) {
+                    // Correct Answer styling
+                    node.classList.replace('border-slate-200', 'border-emerald-500');
+                    node.classList.add('bg-emerald-50');
+                    badge.classList.replace('bg-slate-100', 'bg-emerald-500');
+                    badge.classList.replace('text-slate-600', 'text-white');
+                    iconContainer.innerHTML = `<i data-lucide="check-circle-2" class="w-6 h-6 text-emerald-500"></i>`;
+                } else if (letter === selectedLetter && !isCorrect) {
+                    // Incorrect Answer styling
+                    node.classList.replace('border-slate-200', 'border-rose-500');
+                    node.classList.add('bg-rose-50');
+                    badge.classList.replace('bg-slate-100', 'bg-rose-500');
+                    badge.classList.replace('text-slate-600', 'text-white');
+                    iconContainer.innerHTML = `<i data-lucide="x-circle" class="w-6 h-6 text-rose-500"></i>`;
+                } else {
+                    // Dim others
+                    node.classList.add('opacity-50');
+                }
+                i++;
+            });
+
+            lucide.createIcons();
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            if (state.currentIndex < state.questions.length - 1) {
+                state.currentIndex++;
+                renderQuestion();
+            } else {
+                finishQuiz();
+            }
+        }
+
+        function finishQuiz() {
+            document.getElementById('quiz-view').classList.remove('flex');
+            document.getElementById('quiz-view').classList.add('hidden');
+            
+            const resultsView = document.getElementById('results-view');
+            resultsView.classList.remove('hidden');
+            
+            document.getElementById('final-score').innerText = `${state.score} / ${state.questions.length}`;
+            const accuracy = Math.round((state.score / state.questions.length) * 100);
+            document.getElementById('final-accuracy').innerText = `${accuracy}%`;
+            
+            document.getElementById('stats-badge').classList.add('hidden');
+            document.getElementById('stats-badge').classList.remove('flex');
+        }
+
+        function resetApp() {
+            // Reset state variables
+            state.questions = [];
+            state.currentIndex = 0;
+            state.score = 0;
+            
+            // Reset UI
+            document.getElementById('file-input').value = '';
+            document.getElementById('file-list').classList.add('hidden');
+            document.getElementById('file-list').innerHTML = '';
+            document.getElementById('upload-btn').disabled = false;
+            document.getElementById('upload-btn').classList.remove('hidden');
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('loading-state').classList.remove('flex');
+            document.getElementById('score-display').innerText = '0';
+            
+            document.getElementById('results-view').classList.add('hidden');
+            document.getElementById('upload-view').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
+
+```
