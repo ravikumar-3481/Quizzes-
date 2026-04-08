@@ -1,7 +1,6 @@
-fastapi
-uvicorn
-python-multipart
+streamlit
+pandas
+scikit-learn
+transformers
 torch
-sentence-transformers
-pydantic
-gunicorn
+PyPDF2
